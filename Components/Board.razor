@@ -12,22 +12,75 @@
 </HeadContent>
 
 <div>
+    <!-- Color Picker Controls -->
+    <div class="color-controls">
+        <div class="color-picker">
+            <label> Board Color:</label>
+            <input type="color" value="@BoardColorHex" @onchange="UpdateBoardColor" />
+        </div>
+        <div class="color-picker">
+            <label> Player 1 Color:</label>
+            <input type="color" value="@Player1ColorHex" @onchange="UpdatePlayer1Color" />
+        </div>
+        <div class="color-picker">
+            <label> Player 2 Color:</label>
+            <input type="color" value="@Player2ColorHex" @onchange="UpdatePlayer2Color" />
+        </div>
+    </div>
+
+    <!-- Win Streak Display -->
+    <div class="streak-board">
+        <div class="streak-card player1-streak">
+            <h3> Player 1 Win Streak</h3>
+            <div class="streak-number">@State.Player1WinStreak</div>
+            <div class="streak-label">consecutive wins</div>
+        </div>
+        <div class="streak-card player2-streak">
+            <h3> Player 2 Win Streak</h3>
+            <div class="streak-number">@State.Player2WinStreak</div>
+            <div class="streak-label">consecutive wins</div>
+        </div>
+        <div class="streak-card total-games">
+            <h3>🎮 Total Games</h3>
+            <div class="streak-number">@State.TotalGamesPlayed</div>
+            <div class="streak-label">games completed</div>
+        </div>
+    </div>
+
     <nav>
         @for (byte i = 0; i < 7; i++)
         {
             var col = i;
-            <span title="Click to play a piece" @onclick="() => PlayPiece(col)">🔽</span>
+            bool isColumnFull = State.IsColumnFull(col);
+            <span title="@(isColumnFull ? "Column is full!" : "Click to play a piece")" 
+                  @onclick="isColumnFull ? null : () => PlayPiece(col)"
+                  style="@(isColumnFull ? "opacity: 0.3; cursor: not-allowed;" : "cursor: pointer;")">
+                🔽
+            </span>
         }
     </nav>
 
+    <!-- Game Status Area -->
     <article>
-        @winnerMessage
-        <button style="@ResetStyle" @onclick="ResetGame">Reset the game</button>
+        @if (!string.IsNullOrEmpty(winnerMessage))
+        {
+            <div class="winner-message @(winnerMessage.Contains("Wins") ? "winner-celebration" : "")">
+                @winnerMessage
+            </div>
+        }
+        <div class="button-group">
+            <button style="@ResetStyle" @onclick="ResetGame">🔄 Reset Game</button>
+            <button style="@ResetStreakStyle" @onclick="ResetStreaks">📊 Reset Streaks</button>
+        </div>
         <br />
-        <span class="alert-danger">@errorMessage</span>
-        <span class="alert-info">@CurrentTurn</span>
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert-danger">⚠️ @errorMessage</div>
+        }
+        <div class="alert-info">@CurrentTurn</div>
     </article>
 
+    <!-- Game Board -->
     <div>
         <div class="board">
             @for (var i = 0; i < 42; i++)
@@ -55,16 +108,51 @@
     [Parameter]
     public Color Player2Color { get; set; } = ColorTranslator.FromHtml("blue");
 
+    // Helper properties for color pickers
+    private string BoardColorHex 
+    { 
+        get => ColorTranslator.ToHtml(BoardColor);
+        set => BoardColor = ColorTranslator.FromHtml(value);
+    }
+    
+    private string Player1ColorHex 
+    { 
+        get => ColorTranslator.ToHtml(Player1Color);
+        set => Player1Color = ColorTranslator.FromHtml(value);
+    }
+    
+    private string Player2ColorHex 
+    { 
+        get => ColorTranslator.ToHtml(Player2Color);
+        set => Player2Color = ColorTranslator.FromHtml(value);
+    }
+
     private string[] pieces = new string[42];
     private string winnerMessage = string.Empty;
     private string errorMessage = string.Empty;
 
-    private string CurrentTurn => (winnerMessage == string.Empty) ? $"Player {State.PlayerTurn}'s Turn" : "";
-    private string ResetStyle => (winnerMessage == string.Empty) ? "display: none;" : "";
+    private string CurrentTurn => (winnerMessage == string.Empty) ? $"🎲 Player {State.PlayerTurn}'s Turn" : "";
+    private string ResetStyle => (winnerMessage == string.Empty) ? "display: inline-block;" : "display: inline-block;";
+    private string ResetStreakStyle => (State.TotalGamesPlayed == 0) ? "display: none;" : "display: inline-block; margin-left: 10px;";
 
     protected override void OnInitialized()
     {
         State.ResetBoard();
+    }
+
+    private void UpdateBoardColor()
+    {
+        StateHasChanged();
+    }
+
+    private void UpdatePlayer1Color()
+    {
+        StateHasChanged();
+    }
+
+    private void UpdatePlayer2Color()
+    {
+        StateHasChanged();
     }
 
     private void PlayPiece(byte col)
@@ -78,13 +166,16 @@
             var landingRow = State.PlayPiece(col);
             pieces[turn] = $"player{player} col{col} drop{landingRow}";
             
-            winnerMessage = State.CheckForWin() switch
+            var winState = State.CheckForWin();
+            winnerMessage = winState switch
             {
-                GameState.WinState.Player1_Wins => "Player 1 Wins! 🎉",
-                GameState.WinState.Player2_Wins => "Player 2 Wins! 🎉",
-                GameState.WinState.Tie => "It's a tie! 🤝",
+                GameState.WinState.Player1_Wins => $"🏆 Player 1 Wins! 🏆 (Streak: {State.Player1WinStreak})",
+                GameState.WinState.Player2_Wins => $"🏆 Player 2 Wins! 🏆 (Streak: {State.Player2WinStreak})",
+                GameState.WinState.Tie => "🤝 It's a tie! 🤝",
                 _ => ""
             };
+            
+            StateHasChanged();
         }
         catch (ArgumentException ex)
         {
@@ -98,5 +189,12 @@
         winnerMessage = string.Empty;
         errorMessage = string.Empty;
         pieces = new string[42];
+        StateHasChanged();
+    }
+
+    void ResetStreaks()
+    {
+        State.ResetWinStreaks();
+        StateHasChanged();
     }
 }
