@@ -15,28 +15,28 @@
     <!-- Color Picker Controls -->
     <div class="color-controls">
         <div class="color-picker">
-            <label> Board Color:</label>
-            <input type="color" value="@BoardColorHex" @onchange="UpdateBoardColor" />
+            <label>🎨 Board Color:</label>
+            <input type="color" value="@BoardColorHex" @onchange="(ChangeEventArgs e) => UpdateBoardColor(e.Value?.ToString())" />
         </div>
         <div class="color-picker">
-            <label> Player 1 Color:</label>
-            <input type="color" value="@Player1ColorHex" @onchange="UpdatePlayer1Color" />
+            <label>🔴 Player 1 Color:</label>
+            <input type="color" value="@Player1ColorHex" @onchange="(ChangeEventArgs e) => UpdatePlayer1Color(e.Value?.ToString())" />
         </div>
         <div class="color-picker">
-            <label> Player 2 Color:</label>
-            <input type="color" value="@Player2ColorHex" @onchange="UpdatePlayer2Color" />
+            <label>🔵 Player 2 Color:</label>
+            <input type="color" value="@Player2ColorHex" @onchange="(ChangeEventArgs e) => UpdatePlayer2Color(e.Value?.ToString())" />
         </div>
     </div>
 
     <!-- Win Streak Display -->
     <div class="streak-board">
         <div class="streak-card player1-streak">
-            <h3> Player 1 Win Streak</h3>
+            <h3>🔥 Player 1 Win Streak</h3>
             <div class="streak-number">@State.Player1WinStreak</div>
             <div class="streak-label">consecutive wins</div>
         </div>
         <div class="streak-card player2-streak">
-            <h3> Player 2 Win Streak</h3>
+            <h3>🔥 Player 2 Win Streak</h3>
             <div class="streak-number">@State.Player2WinStreak</div>
             <div class="streak-label">consecutive wins</div>
         </div>
@@ -47,14 +47,15 @@
         </div>
     </div>
 
+    <!-- Drop Buttons with Visual Indicators - FIXED -->
     <nav>
         @for (byte i = 0; i < 7; i++)
         {
             var col = i;
             bool isColumnFull = State.IsColumnFull(col);
             <span title="@(isColumnFull ? "Column is full!" : "Click to play a piece")" 
-                  @onclick="isColumnFull ? null : () => PlayPiece(col)"
-                  style="@(isColumnFull ? "opacity: 0.3; cursor: not-allowed;" : "cursor: pointer;")">
+                  @onclick="() => TryPlayPiece(col)"
+                  style="@(isColumnFull ? "opacity: 0.3; cursor: not-allowed; pointer-events: none;" : "cursor: pointer;")">
                 🔽
             </span>
         }
@@ -69,8 +70,8 @@
             </div>
         }
         <div class="button-group">
-            <button style="@ResetStyle" @onclick="ResetGame">🔄 Reset Game</button>
-            <button style="@ResetStreakStyle" @onclick="ResetStreaks">📊 Reset Streaks</button>
+            <button @onclick="ResetGame">🔄 Reset Game</button>
+            <button @onclick="ResetStreaks" style="@ResetStreakStyle">📊 Reset Streaks</button>
         </div>
         <br />
         @if (!string.IsNullOrEmpty(errorMessage))
@@ -81,19 +82,21 @@
     </article>
 
     <!-- Game Board -->
-    <div>
-        <div class="board">
+    <div class="game-board-wrapper">
+        <div>
+            <div class="board">
+                @for (var i = 0; i < 42; i++)
+                {
+                    <span class="container">
+                        <span></span>
+                    </span>
+                }
+            </div>
             @for (var i = 0; i < 42; i++)
             {
-                <span class="container">
-                    <span></span>
-                </span>
+                <span class="@pieces[i]"></span>
             }
         </div>
-        @for (var i = 0; i < 42; i++)
-        {
-            <span class="@pieces[i]"></span>
-        }
     </div>
 </div>
 
@@ -132,7 +135,7 @@
     private string errorMessage = string.Empty;
 
     private string CurrentTurn => (winnerMessage == string.Empty) ? $"🎲 Player {State.PlayerTurn}'s Turn" : "";
-    private string ResetStyle => (winnerMessage == string.Empty) ? "display: inline-block;" : "display: inline-block;";
+    private string ResetStyle => "display: inline-block;";
     private string ResetStreakStyle => (State.TotalGamesPlayed == 0) ? "display: none;" : "display: inline-block; margin-left: 10px;";
 
     protected override void OnInitialized()
@@ -140,19 +143,40 @@
         State.ResetBoard();
     }
 
-    private void UpdateBoardColor()
+    private void UpdateBoardColor(string? colorHex)
     {
-        StateHasChanged();
+        if (!string.IsNullOrEmpty(colorHex))
+        {
+            BoardColor = ColorTranslator.FromHtml(colorHex);
+            StateHasChanged();
+        }
     }
 
-    private void UpdatePlayer1Color()
+    private void UpdatePlayer1Color(string? colorHex)
     {
-        StateHasChanged();
+        if (!string.IsNullOrEmpty(colorHex))
+        {
+            Player1Color = ColorTranslator.FromHtml(colorHex);
+            StateHasChanged();
+        }
     }
 
-    private void UpdatePlayer2Color()
+    private void UpdatePlayer2Color(string? colorHex)
     {
-        StateHasChanged();
+        if (!string.IsNullOrEmpty(colorHex))
+        {
+            Player2Color = ColorTranslator.FromHtml(colorHex);
+            StateHasChanged();
+        }
+    }
+
+    // New method to safely try playing a piece
+    private void TryPlayPiece(byte col)
+    {
+        if (!State.IsColumnFull(col))
+        {
+            PlayPiece(col);
+        }
     }
 
     private void PlayPiece(byte col)
